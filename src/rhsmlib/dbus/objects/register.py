@@ -181,6 +181,32 @@ class DomainSocketRegisterDBusImplementation(base_object.BaseImplementation):
         owners: List[dict] = uep.getOwnerList(options["username"])
         return owners
 
+    def get_environments(self, options: dict) -> List[dict]:
+        """Get environments for every org belonging to user
+
+        :param options: Connection options including the 'username', 'password', and 'org_id' keys
+        :return: List of environments
+        """
+        uep: UEPConnection = self.build_uep(options, basic_auth_method=True)
+        status: dict = uep.getStatus()
+
+        list_all_environments: bool = False
+        if "typed_environments" in status["managerCapabilities"]:
+            list_all_environments = True
+
+        org_environments: List[dict] = uep.getEnvironmentList(options["org_id"], list_all_environments)
+
+        env: dict = {}
+        environments = []
+        for e in org_environments:
+            env["id"] = e["id"]
+            env["name"] = e["name"]
+            env["description"] = e["description"]
+            env["type"] = e["type"]
+        environments.append(env)
+
+        return environments
+
     def register_with_credentials(
         self, organization: Optional[str], register_options: dict, connection_options: dict
     ) -> dict:
@@ -332,6 +358,40 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
 
         self.sender = sender
         self.cmd_line = cmd_line
+
+    @dbus.service.method(
+        dbus_interface=constants.PRIVATE_REGISTER_INTERFACE,
+        in_signature="sssa{sv}s",
+        out_signature="s",
+    )
+    @util.dbus_handle_exceptions
+    def GetEnvironments(self, username, password, org_id, connection_options, locale):
+        """
+        This method tries to return list of environments in the given orgs. This method also uses
+        basic authentication method (using username and password).
+
+        :param username: string with username used for connection to candlepin server
+        :param password: string with password
+        :param org_id: string with org id to list environments for
+        :param connection_options: dictionary with connection options
+        :param locale: string with locale
+        :return: string with json returned by candlepin server
+        """
+        connection_options = dbus_utils.dbus_to_python(connection_options, expected_type=dict)
+        connection_options["username"] = dbus_utils.dbus_to_python(username, expected_type=str)
+        connection_options["password"] = dbus_utils.dbus_to_python(password, expected_type=str)
+        connection_options["org_id"] = dbus_utils.dbus_to_python(org_id, expected_type=str)
+        locale = dbus_utils.dbus_to_python(locale, expected_type=str)
+
+        with DBusSender() as dbus_sender:
+            dbus_sender.set_cmd_line(sender=self.sender, cmd_line=self.cmd_line)
+            Locale.set(locale)
+
+            owners = self.impl.get_environments(connection_options)
+
+            dbus_sender.reset_cmd_line()
+
+        return json.dumps(owners)
 
     @dbus.service.method(
         dbus_interface=constants.PRIVATE_REGISTER_INTERFACE,
