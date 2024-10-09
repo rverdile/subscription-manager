@@ -24,6 +24,7 @@ from rhsmlib.dbus import constants, exceptions, dbus_utils, base_object, server,
 from rhsmlib.services.register import RegisterService
 from rhsmlib.services.unregister import UnregisterService
 from rhsmlib.services.entitlement import EntitlementService
+from rhsmlib.services.environment import EnvironmentService
 from rhsmlib.client_info import DBusSender
 from subscription_manager.cp_provider import CPProvider
 
@@ -188,24 +189,21 @@ class DomainSocketRegisterDBusImplementation(base_object.BaseImplementation):
         :return: List of environments
         """
         uep: UEPConnection = self.build_uep(options, basic_auth_method=True)
-        status: dict = uep.getStatus()
+        environment_service: EnvironmentService = EnvironmentService(uep)
 
-        list_all_environments: bool = False
-        if "typed_environments" in status["managerCapabilities"]:
-            list_all_environments = True
+        environments = environment_service.list(options["org_id"], typed_environments=True)
 
-        org_environments: List[dict] = uep.getEnvironmentList(options["org_id"], list_all_environments)
+        result: List[dict] = []
+        for environment in environments:
+            result.append(
+                {
+                    "id": environment["id"],
+                    "name": environment["name"],
+                    "description": environment["description"],
+                    "type": environment["type"],
+                })
 
-        env: dict = {}
-        environments = []
-        for e in org_environments:
-            env["id"] = e["id"]
-            env["name"] = e["name"]
-            env["description"] = e["description"]
-            env["type"] = e["type"]
-        environments.append(env)
-
-        return environments
+        return result
 
     def register_with_credentials(
         self, organization: Optional[str], register_options: dict, connection_options: dict
@@ -387,11 +385,11 @@ class DomainSocketRegisterDBusObject(base_object.BaseObject):
             dbus_sender.set_cmd_line(sender=self.sender, cmd_line=self.cmd_line)
             Locale.set(locale)
 
-            owners = self.impl.get_environments(connection_options)
+            environments = self.impl.get_environments(connection_options)
 
             dbus_sender.reset_cmd_line()
 
-        return json.dumps(owners)
+        return json.dumps(environments)
 
     @dbus.service.method(
         dbus_interface=constants.PRIVATE_REGISTER_INTERFACE,

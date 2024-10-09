@@ -25,7 +25,6 @@ from rhsmlib.dbus.server import DomainSocketServer
 from unittest import mock
 from test.rhsmlib.base import SubManDBusFixture
 
-
 CONSUMER_CONTENT_JSON_SCA = """{"hypervisorId": null,
         "serviceLevel": "",
         "autoheal": true,
@@ -123,50 +122,22 @@ OWNERS_CONTENT_JSON = """[
 ]
 """
 
-STATUS_CONTENT_JSON = """
-{
-  "mode": "NORMAL",
-  "modeReason": null,
-  "modeChangeTime": null,
-  "result": true,
-  "version": "4.4.17",
-  "release": "1",
-  "standalone": true,
-  "timeUTC": "2024-10-01T14:05:05+0000",
-  "rulesSource": "database",
-  "rulesVersion": "5.44",
-  "managerCapabilities": [
-    "instance_multiplier",
-    "derived_product",
-    "vcpu",
-    "cert_v3",
-    "hypervisors_heartbeat",
-    "remove_by_pool_id",
-    "syspurpose",
-    "storage_band",
-    "cores",
-    "multi_environment",
-    "hypervisors_async",
-    "org_level_content_access",
-    "typed_environments",
-    "guest_limit",
-    "ram",
-    "batch_bind"
-  ],
-  "keycloakRealm": null,
-  "keycloakAuthUrl": null,
-  "keycloakResource": null,
-  "deviceAuthRealm": null,
-  "deviceAuthUrl": null,
-  "deviceAuthClientId": null,
-  "deviceAuthScope": null
-}
-"""
-
 ENVIRONMENTS_CONTENT_JSON = """[
   {
     "id": "fake-id",
     "name": "test-environment",
+    "description": "test description",
+    "type": "content-template"
+  },
+  {
+    "id": "fake-id-2",
+    "name": "test-environment-2",
+    "description": "test description",
+    "type": "content-template"
+  },
+  {
+    "id": "fake-id-3",
+    "name": "test-environment-3",
     "description": "test description",
     "type": "content-template"
   }
@@ -363,8 +334,6 @@ class DomainSocketRegisterDBusObjectTest(SubManDBusFixture):
         mock_cp = mock.Mock(spec=connection.UEPConnection, name="UEPConnection")
         mock_cp.username = "username"
         mock_cp.password = "password"
-        mock_cp.getStatus = mock.Mock()
-        mock_cp.getStatus.return_value = json.loads(STATUS_CONTENT_JSON)
         mock_cp.getEnvironmentList = mock.Mock()
         mock_cp.getEnvironmentList.return_value = json.loads(ENVIRONMENTS_CONTENT_JSON)
         self.patches["build_uep"].return_value = mock_cp
